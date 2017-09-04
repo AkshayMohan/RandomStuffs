@@ -51,7 +51,7 @@ static int rollback_callback(void *NotUsed, int argc, char **argv, char **sColNa
 
 int setupSQLiteConnection(char *sDBName); //0 = success | 1 = fail
 int closeSQLiteConnection(); //1 = success | 0 = fail
-int convertFileTypeToHTML(char *sDPath, Bool bSubFolders); //1 = success | 0 = fail
+int changePathExtension(char *sDPath, char *sExtension, Bool bSubFolders, unsigned int *nFiles); //1 = success | (0 = path/privilege issue, -1 = heap issue)
 int listConvertedData(); //returns total number of files converted. -1 if fails.
 void rollbackFileTypes(); 
 
@@ -103,93 +103,128 @@ int closeSQLiteConnection() {
 	return (sqlite3_close(gSQLHandle) == SQLITE_OK) ? 1 : 0;
 }
 
-
-int convertFileTypeToHTML(char *sDPath, Bool bSubFolders) {
+int changePathExtension(char *sDPath, char *sExtension, Bool bSubFolders, unsigned int *nFiles) {
 
 	HANDLE hHandle;
 	WIN32_FIND_DATA fdFileData;
 
+	Bool bExtension;
+
 	char
-		*sFilePath,
+		*sPrevPath,
 		*sCurrPath,
-		*tempStr,
 		*sQuery,
 		*szErrorMsg = 0
 	;
-	int sPathLen;
+	unsigned int
+				iDPathLen,
+				idestPathLen
+	;
+	iDPathLen 	=	strlen(sDPath);
+	sPrevPath 	=	(char *)malloc(sizeof(char) * (iDPathLen + 5));
 
-	sCurrPath 	= (char *)malloc(sizeof(char) * strlen(sDPath));
-	sFilePath 	= (char *)malloc(sizeof(char) * (strlen(sDPath) + 5));
-	tempStr 	= (char *)malloc(sizeof(char));
+	if(sPrevPath == NULL)
+		return -1;
 
-	strcpy(sCurrPath, sDPath);
-	sprintf(sFilePath, "%s\\*.*", sDPath);
+	sprintf(sPrevPath, "%s\\*.*", sDPath);
+	hHandle = FindFirstFile(sPrevPath, &fdFileData);
+	free(sPrevPath);
 
-	if((hHandle = FindFirstFile(sFilePath, &fdFileData)) == INVALID_HANDLE_VALUE)
+	if(hHandle == INVALID_HANDLE_VALUE)
 		return 0;
 
 	while(FindNextFile(hHandle, &fdFileData)) {
 
-		if(!strcmp(fdFileData.cFileName, "..") || !strcmp(fdFileData.cFileName, "."))
+		if(!strcmp(fdFileData.cFileName, "..") || !strcmp(fdFileData.cFileName, ".")) 
 			continue;
 
-		sFilePath = (char *)realloc(sFilePath, sizeof(char) * (strlen(sFilePath) + strlen(fdFileData.cFileName)));
-		sprintf(sFilePath, "%s\\%s", sCurrPath, fdFileData.cFileName);
+		if((fdFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && bSubFolders) {
 
-		if(fdFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			sPrevPath = (char *)malloc(sizeof(char) * (iDPathLen + strlen(fdFileData.cFileName) + 2));
+			if(sPrevPath == NULL)
+				return -1;
 
-			tempStr = (char *)realloc(tempStr, sizeof(char) * (strlen(sCurrPath) + strlen(fdFileData.cFileName)));
-			sprintf(tempStr, "%s\\%s", sCurrPath, fdFileData.cFileName);
+			sprintf(sPrevPath, "%s\\%s", sDPath, fdFileData.cFileName);
+			changePathExtension(sPrevPath, sExtension, True, nFiles);
 
-			if(bSubFolders) 
-				convertFileTypeToHTML(tempStr, True);
+			free(sPrevPath);
 		} else {
 
-			tempStr = (char *)realloc(tempStr, sizeof(char) * (strlen(sFilePath) + 6));
-			strcpy(tempStr, sFilePath);
+			sPrevPath = (char *)malloc(sizeof(char) * (iDPathLen + strlen(fdFileData.cFileName) + 2));
+			if(sPrevPath == NULL)
+				return -1;
 
-			sPathLen = strlen(tempStr) - 1;
-			while(tempStr[sPathLen] != '.')
-				sPathLen--;
+			sprintf(sPrevPath, "%s\\%s", sDPath, fdFileData.cFileName);
+			idestPathLen = strlen(sPrevPath);
 
-			tempStr[sPathLen] = '\0';
-			strcat(tempStr, ".html");
+			sCurrPath = (char *)malloc(sizeof(char) * (idestPathLen + strlen(sExtension) + 1));
+			if(sCurrPath == NULL) {
+
+				free(sPrevPath);
+				return -1;
+			}
+			strcpy(sCurrPath, sPrevPath);
+			bExtension = False;
+			idestPathLen--;
+			while(sCurrPath[idestPathLen] != '\\') {
+
+				if(sCurrPath[idestPathLen] == '.') {
+
+					bExtension = True;
+					break;
+				}
+				idestPathLen--;
+			}
+			if(bExtension)
+				sCurrPath[idestPathLen] = '\0';
+
+			strcat(sCurrPath, sExtension);
 
 			sQuery = sqlite3_mprintf(
 				"INSERT INTO filePathData "\
 				"(prevFilePath, currFilePath) "\
-				"VALUES ('%q', '%q');", sFilePath, tempStr)
+				"VALUES ('%q', '%q');", sPrevPath, sCurrPath)
 			;
+			if(sQuery == NULL) {
 
+				free(sCurrPath);
+				free(sPrevPath);
+
+				return -1;
+			}
 			if(sqlite3_exec(gSQLHandle, sQuery, 0, 0, &szErrorMsg) != SQLITE_OK) {
 
-				//Could also be if duplicate entries are there.
-				//printf("INSERTION ERROR ON SQL : %s\n", szErrorMsg); 
-				//szErrorMsg contains the SQL error occurred.
-				printf("ERROR : Could not change '%s' file. (A duplicate entry could probably exist!)\n", fdFileData.cFileName);
-				sqlite3_free(szErrorMsg);
+				printf("ERROR : Could not change the extension of '%s'! (Reason : Likely to be a duplicate entry)\n", sPrevPath);
+
+				free(sCurrPath);
+				free(sPrevPath);
+
 				sqlite3_free(sQuery);
+				//printf("SQL ERROR : %s\n", szErrorMsg); //Uncomment to view SQL error.
+				sqlite3_free(szErrorMsg);
+
 				continue;
 			}
-
 			set_consoletext_color(FOREGROUND_GREEN);
-			printf("%s ", sFilePath);
+			printf("%s ", sPrevPath);
 
 			set_consoletext_color(gwCurrCol);
 			printf("-> ");
 
 			set_consoletext_color(FOREGROUND_RED);
-			printf("%s\n", tempStr);
+			printf("%s\n", sCurrPath);
 
 			set_consoletext_color(gwCurrCol);
+			rename(sPrevPath, sCurrPath);
+			(*nFiles)++;
 
+			free(sCurrPath);
+			free(sPrevPath);
 			sqlite3_free(sQuery);
-			rename(sFilePath, tempStr);
+
 		}
 	}
-	free(sFilePath);
-	free(sCurrPath);
-	free(tempStr);
+	FindClose(hHandle);
 	return 1;
 }
 
@@ -262,9 +297,10 @@ static int rollback_callback(void *NotUsed, int argc, char **argv, char **sColNa
 
 		printf("SQL ERROR : %s\n", szErrorMsg);
 		sqlite3_free(szErrorMsg);
+		sqlite3_free(sQuery);
 		return 1;
 	}
-
+	sqlite3_free(sQuery);
 	set_consoletext_color(FOREGROUND_RED);
 	printf("%s ", argv[1]);
 
