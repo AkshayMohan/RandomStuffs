@@ -37,6 +37,10 @@ int main() {
 	unsigned short int iOption;
 	Bool bSubFolders = False;
 
+	unsigned long int tickCounts;
+	int pathretVal;
+	unsigned int nFiles;
+
 	printf(
 		"_______________________________________\n"\
 		"\n"\
@@ -50,6 +54,7 @@ int main() {
 	}
 	while(1) {
 
+		nFiles = 0;
 		printf(
 			"\n1. Convert files from a path to .html.\n"\
 			"2. List converted files.\n"\
@@ -71,10 +76,14 @@ int main() {
 				if(iOption)
 					bSubFolders = True;
 
-				if(convertFileTypeToHTML(sFilePath, bSubFolders))
-					printf("Files have been converted to .html!\n");
-				else
+				tickCounts = GetTickCount();
+				pathretVal = changePathExtension(sFilePath, ".html", bSubFolders, &nFiles);
+				if(pathretVal == 1)
+					printf("%d files have been converted to .html! (Time taken : %0.2f seconds)\n", nFiles, (float)((float)(GetTickCount() - tickCounts) / 1000.00));
+				else if(pathretVal == 0)
 					printf("ERROR : Failed converting to .html! Make sure this program is running as administrator or if the path exists.\n");
+				else
+					printf("ERROR : Failed to allocate more memory!\n");
 
 				break;
 			}
