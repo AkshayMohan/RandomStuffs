@@ -31,7 +31,7 @@ _______________________________________________________________________________	
 #include "..\\include\\main.h"
 
 
-int main() {
+int main(int argc, char **argv) {
 
 	char sFilePath[MAX_PATH];
 	unsigned short int iOption;
@@ -52,66 +52,106 @@ int main() {
 		printf("ERROR : Could not establish a connection with database!\n");
 		return 1;
 	}
-	while(1) {
+	if(argc > 1) {
 
-		nFiles = 0;
-		printf(
-			"\n1. Convert files from a path to .html.\n"\
-			"2. List converted files.\n"\
-			"3. Undo all conversions.\n"\
-			"4. Exit.\n"\
-			"Choose an operation : ");
-		scanf("%hd", &iOption);
+		if(!strcmp(argv[1], "--help")) {
 
-		switch(iOption) {
+			printf(
+				"all2HTML - Command line arguments guide.\n"\
+				"Syntax : all2html.exe [mode] [path]\n"\
+				"Modes:\n"\
+				"-a\t-\tConvert all files and subfolders inside the given path.\n"\
+				"-f\t-\tConvert all files only inside the given path.\n"\
+				"-l\t-\tList all converted files.\n"\
+				"-r\t-\tRollback/Undo all conversions.\n"\
+				"--help\t-\tall2HTML - Command line arguments guide.\n");
+		}
+		else if(!strcmp(argv[1], "-a") || !strcmp(argv[1], "-f")) {
 
-			case 1 : {
+			if(argc >= 3) {
 
-				printf("Path : ");
-				scanf("%s", sFilePath);
-
-				printf("Do you want to include subfolders? (1 = Yes / 0 = No) : ");
-				scanf("%hd", &iOption);
-
-				if(iOption)
-					bSubFolders = True;
-
-				tickCounts = GetTickCount();
-				pathretVal = changePathExtension(sFilePath, ".html", bSubFolders, &nFiles);
+				nFiles		= 0;
+				tickCounts 	= GetTickCount();
+				pathretVal 	= changePathExtension(argv[2], ".html", (argv[1][1] == 'a') ? True : False, &nFiles);
 				if(pathretVal == 1)
 					printf("%d files have been converted to .html! (Time taken : %0.2f seconds)\n", nFiles, (float)((float)(GetTickCount() - tickCounts) / 1000.00));
 				else if(pathretVal == 0)
 					printf("ERROR : Failed converting to .html! Make sure this program is running as administrator or if the path exists.\n");
 				else
 					printf("ERROR : Failed to allocate more memory!\n");
+			} else 
+				printf("ERROR : Path not set. Try \"all2html.exe --help\" for help.\n");
+		}
+		else if(!strcmp(argv[1], "-l"))
+			listConvertedData();
+		else if(!strcmp(argv[1], "-r")) 
+			rollbackFileTypes();
+		else
+			printf("ERROR : Invalid mode/syntax. Use \"all2HTML.exe --help\" for help.\n");
+	} else {
 
-				break;
-			}
-			case 2 : {
+		while(1) {
 
-				listConvertedData();
-				break;
-			}
-			case 3 : {
+			nFiles = 0;
+			printf(
+				"\n1. Convert files from a path to .html.\n"\
+				"2. List converted files.\n"\
+				"3. Undo all conversions.\n"\
+				"4. Exit.\n"\
+				"Choose an operation : ");
+			scanf("%hd", &iOption);
 
-				rollbackFileTypes();
-				break;
-			}
-			case 4 : {
+			switch(iOption) {
 
-				if(!closeSQLiteConnection())
-					printf("ERROR : Could not close the connection. Make sure no other processes are affecting all2HTML.db\n");
-				else {
+				case 1 : {
 
-					printf("Closing...");
-					Sleep(300);
-					exit(0);
+					printf("Path : ");
+					scanf("%s", sFilePath);
+
+					printf("Do you want to include subfolders? (1 = Yes / 0 = No) : ");
+					scanf("%hd", &iOption);
+
+					if(iOption)
+						bSubFolders = True;
+
+					tickCounts = GetTickCount();
+					pathretVal = changePathExtension(sFilePath, ".html", bSubFolders, &nFiles);
+					if(pathretVal == 1)
+						printf("%d files have been converted to .html! (Time taken : %0.2f seconds)\n", nFiles, (float)((float)(GetTickCount() - tickCounts) / 1000.00));
+					else if(pathretVal == 0)
+						printf("ERROR : Failed converting to .html! Make sure this program is running as administrator or if the path exists.\n");
+					else
+						printf("ERROR : Failed to allocate more memory!\n");
+
 					break;
 				}
+				case 2 : {
+
+					listConvertedData();
+					break;
+				}
+				case 3 : {
+
+					rollbackFileTypes();
+					break;
+				}
+				case 4 : {
+
+					if(!closeSQLiteConnection())
+						printf("ERROR : Could not close the connection. Make sure no other processes are affecting all2HTML.db\n");
+					else {
+
+						printf("Closing...");
+						Sleep(300);
+						exit(0);
+						break;
+					}
+				}
+				default:
+					printf("ERROR : Invalid option chosen!\n");
 			}
-			default:
-				printf("ERROR : Invalid option chosen!\n");
 		}
 	}
+	getch();
 	return 0;
 }
