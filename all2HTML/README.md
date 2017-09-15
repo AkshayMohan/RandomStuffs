@@ -6,6 +6,11 @@ This program changes the extension all files from a path mentioned to ".html" ex
 
 **Changelogs**
 
+v1.0.2 - 15th of September, 2017.
+
+- Added command line arguments for the program. Run it as "all2HTML.exe --help" for instructions.
+- Fixed : Folder names getting appended with ".html" extension when subfolders are not included for conversion.
+
 v1.0.1 - 4th of September, 2017.
 
 - Changed "convertFileTypeToHTML" function to "changePathExtension" with additional two arguments - the extension to be set and the number of files in which changes have occurred.
