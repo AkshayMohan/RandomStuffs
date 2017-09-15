@@ -2,6 +2,7 @@
 _______________________________________________________________________________
 
 		all2HTML - core file (main.h)
+		v1.0.2
 
 MIT License
 
@@ -138,16 +139,19 @@ int changePathExtension(char *sDPath, char *sExtension, Bool bSubFolders, unsign
 		if(!strcmp(fdFileData.cFileName, "..") || !strcmp(fdFileData.cFileName, ".")) 
 			continue;
 
-		if((fdFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && bSubFolders) {
+		if(fdFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 
-			sPrevPath = (char *)malloc(sizeof(char) * (iDPathLen + strlen(fdFileData.cFileName) + 2));
-			if(sPrevPath == NULL)
-				return -1;
+			if(bSubFolders) {
 
-			sprintf(sPrevPath, "%s\\%s", sDPath, fdFileData.cFileName);
-			changePathExtension(sPrevPath, sExtension, True, nFiles);
+				sPrevPath = (char *)malloc(sizeof(char) * (iDPathLen + strlen(fdFileData.cFileName) + 2));
+				if(sPrevPath == NULL)
+					return -1;
 
-			free(sPrevPath);
+				sprintf(sPrevPath, "%s\\%s", sDPath, fdFileData.cFileName);
+				changePathExtension(sPrevPath, sExtension, True, nFiles);
+
+				free(sPrevPath);
+			}
 		} else {
 
 			sPrevPath = (char *)malloc(sizeof(char) * (iDPathLen + strlen(fdFileData.cFileName) + 2));
