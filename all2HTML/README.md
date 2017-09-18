@@ -6,6 +6,10 @@ This program changes the extension all files from a path mentioned to ".html" ex
 
 **Changelogs**
 
+v1.0.3 - 18th of September, 2017.
+
+- Fixed duplicate data entry. Delete the previous "all2HTML.db" and start the program again to use the latest table structure. (Ensure to rollback any changes so as to avoid any conflicts.)
+
 v1.0.2 - 15th of September, 2017.
 
 - Added command line arguments for the program. Run it as "all2HTML.exe --help" for instructions.
