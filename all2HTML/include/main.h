@@ -2,7 +2,7 @@
 _______________________________________________________________________________
 
 		all2HTML - core file (main.h)
-		v1.0.2
+		v1.0.3
 
 MIT License
 
@@ -85,7 +85,8 @@ int setupSQLiteConnection(char *sDBName) {
 		"`filePathID` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,"\
 		"`prevFilePath` TEXT NOT NULL,"\
 		"`currFilePath` TEXT NOT NULL,"\
-		"UNIQUE(`prevFilePath`, `currFilePath`));"
+		"UNIQUE(`prevFilePath`),"\
+		"UNIQUE(`currFilePath`));"
 	;
 	
 	iretVal = sqlite3_exec(gSQLHandle, sQuery, 0, 0, &szErrorMsg);
